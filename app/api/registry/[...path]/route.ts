@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 
-const REGISTRY_HOST = process.env.REGISTRY_HOST || 'https://registry.mastomi.cloud';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
   request: NextRequest,
@@ -43,10 +43,10 @@ async function handleRegistryRequest(
   method: string
 ) {
   try {
+    const REGISTRY_HOST = process.env.REGISTRY_HOST || 'https://your-private-registry';
     const path = pathSegments.join('/');
     const url = `${REGISTRY_HOST}/${path}`;
-    
-    // Get authorization header from the request
+
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json(
@@ -55,20 +55,19 @@ async function handleRegistryRequest(
       );
     }
 
-    // Prepare headers for the registry request
     const headers: HeadersInit = {
-      'Authorization': authHeader,
-      'Accept': request.headers.get('accept') || 'application/json',
-      'Content-Type': request.headers.get('content-type') || 'application/json',
+      Authorization: authHeader,
+      Accept: request.headers.get('accept') || 'application/json',
     };
 
-    // Prepare request options
+    const contentType = request.headers.get('content-type');
+    if (contentType) headers['Content-Type'] = contentType;
+
     const requestOptions: RequestInit = {
       method,
       headers,
     };
 
-    // Add body for POST/PUT requests
     if (method === 'POST' || method === 'PUT') {
       const body = await request.text();
       if (body) {
@@ -76,51 +75,47 @@ async function handleRegistryRequest(
       }
     }
 
-    // Make request to registry
     const registryResponse = await fetch(url, requestOptions);
 
-    // Handle different response types
+    // HEAD request: return only headers
     if (method === 'HEAD') {
-      // For HEAD requests, return headers without body
       const responseHeaders = new Headers();
       registryResponse.headers.forEach((value, key) => {
         responseHeaders.set(key, value);
       });
-      
       return new NextResponse(null, {
         status: registryResponse.status,
         headers: responseHeaders,
       });
     }
 
-    // For other requests, handle JSON or text response
+    const registryContentType = registryResponse.headers.get('content-type') || '';
     let responseData;
-    const contentType = registryResponse.headers.get('content-type');
-    
-    if (contentType?.includes('application/json')) {
+
+    if (registryContentType.includes('application/json')) {
       try {
         responseData = await registryResponse.json();
       } catch {
-        responseData = await registryResponse.text();
+        responseData = await registryResponse.text(); // fallback if broken JSON
       }
     } else {
       responseData = await registryResponse.text();
     }
 
-    // Return response with appropriate status and headers
     const responseHeaders = new Headers();
     registryResponse.headers.forEach((value, key) => {
-      // Skip headers that might cause issues
       if (!['content-encoding', 'content-length', 'transfer-encoding'].includes(key.toLowerCase())) {
         responseHeaders.set(key, value);
       }
     });
 
-    return NextResponse.json(responseData, {
-      status: registryResponse.status,
-      headers: responseHeaders,
-    });
-
+    return new NextResponse(
+      typeof responseData === 'string' ? responseData : JSON.stringify(responseData),
+      {
+        status: registryResponse.status,
+        headers: responseHeaders,
+      }
+    );
   } catch (error) {
     console.error('Registry proxy error:', error);
     return NextResponse.json(

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,13 @@ export default function LoginForm() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
+  const [registryHost, setRegistryHost] = useState('');
+
+  useEffect(() => {
+    fetch('/api/env')
+      .then((res) => res.json())
+      .then((data) => setRegistryHost(data.registryHost));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +43,7 @@ export default function LoginForm() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.1),transparent_50%)]" />
-      
+
       {/* Jika ingin latar tambahan, pastikan SVG data URL-nya valid */}
       {/* <div className="absolute inset-0 bg-[url('data:image/svg+xml,...')] opacity-20" /> */}
 
@@ -109,7 +116,7 @@ export default function LoginForm() {
               <p className="flex items-center justify-center space-x-2">
                 <span>Registry:</span>
                 <code className="bg-slate-800/50 px-2 py-1 rounded text-slate-400 font-mono text-xs">
-                  {process.env.NEXT_PUBLIC_REGISTRY_HOST || 'registry.mastomi.cloud'}
+                  {registryHost || 'Loading...'}
                 </code>
               </p>
             </div>

@@ -1,66 +1,56 @@
-import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 
-const REGISTRY_HOST = process.env.REGISTRY_HOST || 'https://registry.mastomi.cloud';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
     const { repository, tags, auth } = await request.json();
-    
-    if (!auth || !auth.username || !auth.password) {
+
+    if (!auth?.username || !auth?.password) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       );
     }
 
-    const basicAuth = 'Basic ' + btoa(`${auth.username}:${auth.password}`);
-    
+    const REGISTRY_HOST = process.env.REGISTRY_HOST || 'https://your-private-registry';
+    const basicAuth = 'Basic ' + Buffer.from(`${auth.username}:${auth.password}`).toString('base64');
+
     const tagDetails = await Promise.all(
       tags.map(async (tagName: string) => {
         try {
-          // Get manifest
-          const manifestResponse = await fetch(`${REGISTRY_HOST}/v2/${repository}/manifests/${tagName}`, {
+          const manifestRes = await fetch(`${REGISTRY_HOST}/v2/${repository}/manifests/${tagName}`, {
             headers: {
-              'Authorization': basicAuth,
-              'Accept': 'application/vnd.docker.distribution.manifest.v2+json',
+              Authorization: basicAuth,
+              Accept: 'application/vnd.docker.distribution.manifest.v2+json',
             },
           });
 
-          if (!manifestResponse.ok) {
-            throw new Error(`Manifest not found for ${tagName}`);
+          if (!manifestRes.ok) {
+            throw new Error(`Manifest not found for tag: ${tagName}`);
           }
 
-          // Get digest from headers
-          const digest = manifestResponse.headers.get('Docker-Content-Digest') || '';
-          
-          const manifestText = await manifestResponse.text();
-          
-          // Parse the manifest (handle both string and object responses)
-          let manifest;
+          const digest = manifestRes.headers.get('Docker-Content-Digest') || '';
+          const manifestText = await manifestRes.text();
+
+          let manifest: any;
           try {
             manifest = JSON.parse(manifestText);
           } catch {
             manifest = manifestText;
           }
 
-          console.log(`Manifest for ${repository}:${tagName}:`, manifest);
-
-          // Calculate total size: sum of all layers + config size
           let totalSize = 0;
-          
-          if (manifest.layers && Array.isArray(manifest.layers)) {
+
+          if (manifest?.layers && Array.isArray(manifest.layers)) {
             totalSize = manifest.layers.reduce((sum: number, layer: any) => {
-              const layerSize = typeof layer.size === 'number' ? layer.size : 0;
-              return sum + layerSize;
+              return sum + (typeof layer.size === 'number' ? layer.size : 0);
             }, 0);
 
-            // Add config size
-            if (manifest.config && typeof manifest.config.size === 'number') {
+            if (manifest.config?.size && typeof manifest.config.size === 'number') {
               totalSize += manifest.config.size;
             }
           }
-
-          console.log(`Calculated size for ${repository}:${tagName}: ${totalSize} bytes`);
 
           return {
             name: tagName,
@@ -71,12 +61,13 @@ export async function POST(request: NextRequest) {
             os: manifest.os || 'linux',
           };
         } catch (error) {
-          console.error(`Error getting details for tag ${tagName}:`, error);
+          console.error(`Error fetching tag ${tagName}:`, error);
           return {
             name: tagName,
             digest: '',
             size: 0,
             created: new Date().toISOString(),
+            error: true,
           };
         }
       })

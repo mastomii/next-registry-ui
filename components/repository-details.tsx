@@ -26,7 +26,7 @@ import {
   RefreshCw,
   Package,
   Shield,
-  AlertTriangle
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { Tag as TagType } from '@/lib/registry-api';
@@ -46,6 +46,13 @@ export default function RepositoryDetails({ repositoryName, onBack }: Repository
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tagToDelete, setTagToDelete] = useState<TagType | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [registryHost, setRegistryHost] = useState('');
+
+  useEffect(() => {
+    fetch('/api/env')
+      .then((res) => res.json())
+      .then((data) => setRegistryHost(data.registryHost));
+  }, []);
 
   useEffect(() => {
     loadTags();
@@ -56,11 +63,8 @@ export default function RepositoryDetails({ repositoryName, onBack }: Repository
 
     setLoading(true);
     try {
-      // Get basic tag names
       const tagNames = await registryApi.getRepositoryTags(repositoryName);
-      console.log('Tag names:', tagNames);
 
-      // Get auth from localStorage
       const authRaw = localStorage.getItem('registry_auth');
       if (!authRaw) {
         throw new Error('No authentication found');
@@ -68,7 +72,6 @@ export default function RepositoryDetails({ repositoryName, onBack }: Repository
 
       const auth = JSON.parse(authRaw);
 
-      // Use our new API to get detailed tag info
       const response = await fetch('/api/tag-details', {
         method: 'POST',
         headers: {
@@ -86,8 +89,6 @@ export default function RepositoryDetails({ repositoryName, onBack }: Repository
       }
 
       const { tags: tagDetails } = await response.json();
-      console.log('Tag details:', tagDetails);
-
       setTags(tagDetails);
     } catch (error) {
       toast.error('Failed to load repository tags');
@@ -101,8 +102,7 @@ export default function RepositoryDetails({ repositoryName, onBack }: Repository
     if (!bytes || bytes === 0) return '0 B';
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    const formattedSize = (bytes / Math.pow(1024, i)).toFixed(2);
-    return `${formattedSize} ${sizes[i]}`;
+    return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
   };
 
   const copyToClipboard = (text: string) => {
@@ -116,7 +116,7 @@ export default function RepositoryDetails({ repositoryName, onBack }: Repository
   };
 
   const confirmDelete = async () => {
-    if (!registryApi || !tagToDelete || !tagToDelete.digest) {
+    if (!registryApi || !tagToDelete?.digest) {
       toast.error('Cannot delete tag: missing digest');
       return;
     }
@@ -127,7 +127,7 @@ export default function RepositoryDetails({ repositoryName, onBack }: Repository
       toast.success(`Tag ${tagToDelete.name} deleted successfully`);
       setDeleteDialogOpen(false);
       setTagToDelete(null);
-      loadTags(); // Reload tags after deletion
+      loadTags();
     } catch (error) {
       toast.error('Failed to delete tag');
       console.error('Error deleting tag:', error);
@@ -136,10 +136,10 @@ export default function RepositoryDetails({ repositoryName, onBack }: Repository
     }
   };
 
-  const registryHost = process.env.NEXT_PUBLIC_REGISTRY_HOST?.replace('https://', '') || 'registry.mastomi.cloud';
+  const cleanedRegistryHost = registryHost.replace('https://', '') || 'your-private-registry';
   const dockerPullCommand = selectedTag
-    ? `docker pull ${registryHost}/${repositoryName}:${selectedTag.name}`
-    : `docker pull ${registryHost}/${repositoryName}`;
+    ? `docker pull ${cleanedRegistryHost}/${repositoryName}:${selectedTag.name}`
+    : `docker pull ${cleanedRegistryHost}/${repositoryName}`;
 
   return (
     <div className="space-y-6">
@@ -201,8 +201,8 @@ export default function RepositoryDetails({ repositoryName, onBack }: Repository
                     <div
                       key={tag.name}
                       className={`p-4 rounded-lg border cursor-pointer transition-all duration-200 ${selectedTag?.name === tag.name
-                          ? 'bg-blue-500/10 border-blue-500/50'
-                          : 'bg-slate-700/50 border-slate-600 hover:border-slate-500'
+                        ? 'bg-blue-500/10 border-blue-500/50'
+                        : 'bg-slate-700/50 border-slate-600 hover:border-slate-500'
                         }`}
                       onClick={() => setSelectedTag(tag)}
                     >
