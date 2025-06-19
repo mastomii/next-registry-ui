@@ -103,7 +103,7 @@ docker run -d   -p 5000:5000   --restart=always   --name registry   -v $(pwd)/co
 
 ### 🐳 Option 4: Run using Docker Compose
 
-If you want to run both Docker Registry and this UI using Docker Compose, here's a basic example:
+If you want to run this UI using Docker Compose, here's a basic example:
 
 ```yaml
 services:
@@ -111,17 +111,10 @@ services:
     image: mastomi/next-registry-ui:latest
     restart: always
     environment:
-      - REGISTRY_AUTH=htpasswd
-      - REGISTRY_AUTH_HTPASSWD_REALM="Registry Realm"
-      - REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd
-      - REGISTRY_STORAGE_DELETE_ENABLED=true
       - NEXT_PUBLIC_REGISTRY_HOST=http://your-private-registry-url
       - REGISTRY_HOST=http://your-private-registry-url
-      - REGISTRY_USER=user
-      - REGISTRY_PASS=yout-strong-password
-    volumes:
-      - ./registry-data:/var/lib/registry
-      - ./auth:/auth
+      - REGISTRY_USER=your-private-registry-user
+      - REGISTRY_PASS=your-private-registry-password
 ```
 
 ---
