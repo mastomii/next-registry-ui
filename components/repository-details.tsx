@@ -96,7 +96,15 @@ export default function RepositoryDetails({ repositoryName, onBack }: Repository
       }
 
       const { tags: tagDetails } = await response.json();
-      setTags(tagDetails);
+
+      // Sort tags by created date (newest first)
+      const sortedTags = tagDetails.sort((a: TagType, b: TagType) => {
+        const dateA = new Date(a.created).getTime();
+        const dateB = new Date(b.created).getTime();
+        return dateB - dateA; // Descending order (newest first)
+      });
+
+      setTags(sortedTags);
     } catch (error) {
       toast.error('Failed to load repository tags');
       console.error('Error loading tags:', error);
