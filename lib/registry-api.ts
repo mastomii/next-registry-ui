@@ -150,10 +150,13 @@ class RegistryAPI {
       });
 
       const digest = response.headers.get('Docker-Content-Digest') || '';
-      
+
       // Calculate total size: sum of all layers + config size
       let totalSize = 0;
-      
+      let created = '';
+      let architecture = manifest.architecture;
+      let os = manifest.os;
+
       // Sum all layer sizes
       if (manifest.layers && Array.isArray(manifest.layers)) {
         totalSize = manifest.layers.reduce((sum, layer) => {
@@ -161,19 +164,43 @@ class RegistryAPI {
           return sum + layerSize;
         }, 0);
       }
-      
+
       // Add config size
       if (manifest.config && typeof manifest.config.size === 'number') {
         totalSize += manifest.config.size;
+      }
+
+      // Fetch config blob to get actual created time
+      if (manifest.config?.digest) {
+        try {
+          const configResponse = await this.request(`/v2/${repository}/blobs/${manifest.config.digest}`);
+          const config = await configResponse.json();
+          if (config.created) {
+            created = config.created;
+          }
+          if (config.architecture) {
+            architecture = config.architecture;
+          }
+          if (config.os) {
+            os = config.os;
+          }
+        } catch (configError) {
+          console.error(`Error fetching config blob:`, configError);
+        }
+      }
+
+      // Fallback to current time if created is not found
+      if (!created) {
+        created = new Date().toISOString();
       }
 
       return {
         name: tag,
         digest,
         size: totalSize,
-        created: new Date().toISOString(), // Registry API doesn't provide this directly
-        architecture: manifest.architecture,
-        os: manifest.os,
+        created,
+        architecture,
+        os,
       };
     } catch (error) {
       console.error(`Error getting tag details for ${repository}:${tag}:`, error);
