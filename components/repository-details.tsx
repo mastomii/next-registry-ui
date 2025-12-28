@@ -27,6 +27,13 @@ import {
   Package,
   Shield,
   AlertTriangle,
+  Terminal,
+  Globe,
+  FolderOpen,
+  User,
+  Layers,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { Tag as TagType } from '@/lib/registry-api';
@@ -340,6 +347,155 @@ export default function RepositoryDetails({ repositoryName, onBack }: Repository
                           <p className="text-white">{selectedTag.os}</p>
                         </div>
                       )}
+                    </div>
+                  </>
+                )}
+
+                {/* Container Configuration */}
+                {(selectedTag.entrypoint || selectedTag.cmd || selectedTag.workingDir || selectedTag.user) && (
+                  <>
+                    <Separator className="bg-slate-700" />
+                    <div>
+                      <p className="text-sm text-slate-400 flex items-center space-x-1 mb-2">
+                        <Terminal className="w-3 h-3" />
+                        <span>Container Config</span>
+                      </p>
+                      <div className="space-y-2 text-sm">
+                        {selectedTag.entrypoint && (
+                          <div className="flex">
+                            <span className="text-slate-500 w-24">Entrypoint:</span>
+                            <code className="text-green-400 font-mono text-xs break-all">{selectedTag.entrypoint.join(' ')}</code>
+                          </div>
+                        )}
+                        {selectedTag.cmd && (
+                          <div className="flex">
+                            <span className="text-slate-500 w-24">Cmd:</span>
+                            <code className="text-green-400 font-mono text-xs break-all">{JSON.stringify(selectedTag.cmd)}</code>
+                          </div>
+                        )}
+                        {selectedTag.workingDir && (
+                          <div className="flex">
+                            <span className="text-slate-500 w-24">WorkingDir:</span>
+                            <code className="text-blue-400 font-mono text-xs">{selectedTag.workingDir}</code>
+                          </div>
+                        )}
+                        {selectedTag.user && (
+                          <div className="flex">
+                            <span className="text-slate-500 w-24">User:</span>
+                            <span className="text-white">{selectedTag.user}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Exposed Ports */}
+                {selectedTag.exposedPorts && selectedTag.exposedPorts.length > 0 && (
+                  <>
+                    <Separator className="bg-slate-700" />
+                    <div>
+                      <p className="text-sm text-slate-400 flex items-center space-x-1 mb-2">
+                        <Globe className="w-3 h-3" />
+                        <span>Exposed Ports</span>
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedTag.exposedPorts.map((port, i) => (
+                          <Badge key={i} variant="secondary" className="bg-blue-500/20 text-blue-400 text-xs">
+                            {port}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Environment Variables */}
+                {selectedTag.env && selectedTag.env.length > 0 && (
+                  <>
+                    <Separator className="bg-slate-700" />
+                    <div>
+                      <p className="text-sm text-slate-400 flex items-center space-x-1 mb-2">
+                        <Terminal className="w-3 h-3" />
+                        <span>Environment ({selectedTag.env.length} vars)</span>
+                      </p>
+                      <div className="max-h-32 overflow-y-auto space-y-1 text-xs font-mono bg-slate-900 p-2 rounded">
+                        {selectedTag.env.slice(0, 10).map((envVar, i) => {
+                          const [key, ...valueParts] = envVar.split('=');
+                          const value = valueParts.join('=');
+                          return (
+                            <div key={i} className="flex">
+                              <span className="text-purple-400">{key}</span>
+                              <span className="text-slate-500">=</span>
+                              <span className="text-slate-300 truncate">{value}</span>
+                            </div>
+                          );
+                        })}
+                        {selectedTag.env.length > 10 && (
+                          <p className="text-slate-500 text-xs">...and {selectedTag.env.length - 10} more</p>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Volumes */}
+                {selectedTag.volumes && selectedTag.volumes.length > 0 && (
+                  <>
+                    <Separator className="bg-slate-700" />
+                    <div>
+                      <p className="text-sm text-slate-400 flex items-center space-x-1 mb-2">
+                        <FolderOpen className="w-3 h-3" />
+                        <span>Volumes</span>
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedTag.volumes.map((vol, i) => (
+                          <Badge key={i} variant="secondary" className="bg-orange-500/20 text-orange-400 text-xs font-mono">
+                            {vol}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Labels */}
+                {selectedTag.labels && Object.keys(selectedTag.labels).length > 0 && (
+                  <>
+                    <Separator className="bg-slate-700" />
+                    <div>
+                      <p className="text-sm text-slate-400 flex items-center space-x-1 mb-2">
+                        <Tag className="w-3 h-3" />
+                        <span>Labels ({Object.keys(selectedTag.labels).length})</span>
+                      </p>
+                      <div className="max-h-32 overflow-y-auto space-y-1 text-xs font-mono bg-slate-900 p-2 rounded">
+                        {Object.entries(selectedTag.labels).slice(0, 5).map(([key, value], i) => (
+                          <div key={i} className="flex">
+                            <span className="text-cyan-400 truncate max-w-[120px]" title={key}>{key}</span>
+                            <span className="text-slate-500">: </span>
+                            <span className="text-slate-300 truncate">{value}</span>
+                          </div>
+                        ))}
+                        {Object.keys(selectedTag.labels).length > 5 && (
+                          <p className="text-slate-500 text-xs">...and {Object.keys(selectedTag.labels).length - 5} more</p>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Layer Information */}
+                {selectedTag.layerCount !== undefined && selectedTag.layerCount > 0 && (
+                  <>
+                    <Separator className="bg-slate-700" />
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-slate-400 flex items-center space-x-1">
+                        <Layers className="w-3 h-3" />
+                        <span>Layers</span>
+                      </p>
+                      <Badge variant="secondary" className="bg-slate-700 text-white">
+                        {selectedTag.layerCount}
+                      </Badge>
                     </div>
                   </>
                 )}

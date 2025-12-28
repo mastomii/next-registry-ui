@@ -46,6 +46,18 @@ export async function POST(request: NextRequest) {
           let architecture = 'amd64';
           let os = 'linux';
 
+          // Additional config fields
+          let cmd: string[] = [];
+          let entrypoint: string[] = [];
+          let env: string[] = [];
+          let exposedPorts: string[] = [];
+          let workingDir = '';
+          let volumes: string[] = [];
+          let labels: Record<string, string> = {};
+          let user = '';
+          let author = '';
+          let layerCount = 0;
+
           // Check if this is a manifest list (multi-arch)
           if (manifest.manifests && Array.isArray(manifest.manifests)) {
             // Get the first manifest from the list (usually amd64/linux)
@@ -74,8 +86,9 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          // Calculate size from layers
+          // Calculate size from layers and get layer count
           if (manifest?.layers && Array.isArray(manifest.layers)) {
+            layerCount = manifest.layers.length;
             totalSize = manifest.layers.reduce((sum: number, layer: any) => {
               return sum + (typeof layer.size === 'number' ? layer.size : 0);
             }, 0);
@@ -85,7 +98,7 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          // Fetch config blob to get the actual created time
+          // Fetch config blob to get detailed container configuration
           if (manifest?.config?.digest) {
             try {
               const configRes = await fetch(
@@ -100,16 +113,47 @@ export async function POST(request: NextRequest) {
 
               if (configRes.ok) {
                 const config = await configRes.json();
-                // The created field is in the config blob
+
+                // Basic fields
                 if (config.created) {
                   created = config.created;
                 }
-                // Also get architecture and os from config if available
                 if (config.architecture) {
                   architecture = config.architecture;
                 }
                 if (config.os) {
                   os = config.os;
+                }
+                if (config.author) {
+                  author = config.author;
+                }
+
+                // Container configuration
+                const containerConfig = config.config || {};
+
+                if (containerConfig.Cmd && Array.isArray(containerConfig.Cmd)) {
+                  cmd = containerConfig.Cmd;
+                }
+                if (containerConfig.Entrypoint && Array.isArray(containerConfig.Entrypoint)) {
+                  entrypoint = containerConfig.Entrypoint;
+                }
+                if (containerConfig.Env && Array.isArray(containerConfig.Env)) {
+                  env = containerConfig.Env;
+                }
+                if (containerConfig.WorkingDir) {
+                  workingDir = containerConfig.WorkingDir;
+                }
+                if (containerConfig.User) {
+                  user = containerConfig.User;
+                }
+                if (containerConfig.ExposedPorts && typeof containerConfig.ExposedPorts === 'object') {
+                  exposedPorts = Object.keys(containerConfig.ExposedPorts);
+                }
+                if (containerConfig.Volumes && typeof containerConfig.Volumes === 'object') {
+                  volumes = Object.keys(containerConfig.Volumes);
+                }
+                if (containerConfig.Labels && typeof containerConfig.Labels === 'object') {
+                  labels = containerConfig.Labels;
                 }
               }
             } catch (configError) {
@@ -129,6 +173,17 @@ export async function POST(request: NextRequest) {
             created,
             architecture,
             os,
+            // New fields
+            cmd: cmd.length > 0 ? cmd : undefined,
+            entrypoint: entrypoint.length > 0 ? entrypoint : undefined,
+            env: env.length > 0 ? env : undefined,
+            exposedPorts: exposedPorts.length > 0 ? exposedPorts : undefined,
+            workingDir: workingDir || undefined,
+            volumes: volumes.length > 0 ? volumes : undefined,
+            labels: Object.keys(labels).length > 0 ? labels : undefined,
+            user: user || undefined,
+            author: author || undefined,
+            layerCount,
           };
         } catch (error) {
           console.error(`Error fetching tag ${tagName}:`, error);

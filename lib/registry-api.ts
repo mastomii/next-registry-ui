@@ -13,6 +13,18 @@ export interface Tag {
   created: string;
   architecture?: string;
   os?: string;
+
+  // Container configuration
+  cmd?: string[];
+  entrypoint?: string[];
+  env?: string[];
+  exposedPorts?: string[];
+  workingDir?: string;
+  volumes?: string[];
+  labels?: Record<string, string>;
+  user?: string;
+  author?: string;
+  layerCount?: number;
 }
 
 export interface Manifest {
